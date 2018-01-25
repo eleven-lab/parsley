@@ -1,0 +1,15 @@
+ POST /owa/auth.owa HTTP/1.1
+Accept: text/html, application/xhtml+xml, image/jxr, */*
+Referer: https://exchange01.seclab.local/owa/auth/logon.aspx?replaceCurrent=1&url=https%3a%2f%2fexchange01.seclab.local%2fowa%2f%23authRedirect%3dtrue
+Accept-Language: it-IT
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063
+Content-Type: application/x-www-form-urlencoded
+Accept-Encoding: gzip, deflate, br
+Host: exchange01.seclab.local
+Content-Length: 180
+Connection: Keep-Alive
+Cache-Control: no-cache
+Cookie: X-BackEndCookie=S-1-5-21-3033733466-934874360-2558119207-1115=u56Lnp2ejJqBx8fInMbMmc/Sm87PntLLnceZ0p2by8fSzMycnp2cyc6czc+cgYHNz87H0s/O0s3Pq87JxczKxczP; ClientId=FJGIRYJCUEMLJZZCYCXUQ; PrivateComputer=true; PBack=0
+
+destination=https%3A%2F%2Fexchange01.seclab.local%2Fowa%2F%23authRedirect%3Dtrue&flags=4&forcedownlevel=0&username=seclab%5Cadministrator&password=Password10&passwordText=&isUtf8=1
+

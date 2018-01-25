@@ -1,0 +1,21 @@
+ HTTP/1.1 302 Found
+Cache-Control: private
+Content-Type: text/html; charset=utf-8
+Location: https://exchange01.seclab.local/owa/#authRedirect=true
+Server: Microsoft-IIS/8.5
+request-id: 7a8d1b2a-bd70-48d5-894d-3c4e3724bc36
+X-AspNet-Version: 4.0.30319
+Set-Cookie: cadata=Iddl7Ez48X/DBlNp0br0OWlaWoqTVTT5riYi0hgkKFndbkHYNk32KSXmqvx/vCVDenRaYeJvjCURSlTZPYLcpy6A3s2r7yCOtK5iN2P/psHCVdpe/qv47h3yrNEQX8pgySo9jXdt/7ywN2duNVJ9RQ==; path=/; secure; HttpOnly
+Set-Cookie: cadataTTL=MPQYUnhHsgcmuyY7ypX2Rw==; path=/; secure; HttpOnly
+Set-Cookie: cadataKey=RKDRlaJtqpi3jsADkgq/jJ/nh+bdB1Sc9ud+nbozLL7DyZjl9pzRXXI0YPtRzDXiUHKY45cyqfFh5JiGD66SafYLrzGr5wOITg726wPL67oS6or22/kaydVy43X2Md44Rec/LT1jJIrAlT11VrnuW1aV39yR0IXCCJVpOJI8j9hTuYnRKP3n/6hozRGXMG/AkmNB0ZIqAn+OUGPiVxGLDdDMBbZ8gBms0P77oMdWThno+cgZXNK4ZctkwDE26Zv+RKR/wkbWbo5QsB+z/AYSqEzto3JKOWfCD/1S0FBjQIEb3b167l+YZED8Eb0ik4pkxbNys4yjMMEzV9SqEhqHaA==; path=/; secure; HttpOnly
+Set-Cookie: cadataIV=gCkG+cxR97KCDhUzFdqRQEdu3CIcw26qfpGeqsVN2F3LjFN/DpZoA9rjC6gGXKbqgEYOSz9urDFn2gv2SyWTM0zxxdFB1eGy1injo6G26+kPa24EOS7Rtz95PHx+Sf84RrKIfh1dBoLTZdGVESQSiurmmcOlYUgdP9gD3KzJ3r17ZxB9t0vczEA/hj/keizJpX7axmRQiSuqXs+PPNzbTxNgE+IhOEE4PJOx3QQUJPK9xikZGsWuMUGWJC8oM4pgnX9zAsqGYDRLUYx5AyHMLRRnhN5Xp7hXGWy60ysO96D2yKnwTMXLkZEfCYnE0tLZ3CPg/GGSBe89bROTUFkvCg==; path=/; secure; HttpOnly
+Set-Cookie: cadataSig=JbXdLEk1vXDSz3X4O6/jeiC5iEEQR+iWFdcUestm3dvx+aX/Sgw35N1qdW6eejpjtLJNhaVTn1YzdWDZmbeHdBXWm8vZ9bMoFl8tiqrkEwZ45fypC+UdbvX+xmRpfkUWYbWSIcyggVesQltB6N6BzqJsiOnIys5v/GGNwYQrM+WV1VBkw5/drPgOBU70b3IIYr0uFcQFrcosD8P98CSLR9Na+tdLdMPsonZ/XAM8uNYPBWBKk0fXbMfO1b6z2iroE+7pWgiTD47HClPPeCzX91lNyWfck/sFrliF67wbOvVqnxJzqfJTYwz+cBKv/fmIxNjXgK0CqWGYfILJUNm9Tw==; path=/; secure; HttpOnly
+X-Powered-By: ASP.NET
+X-FEServer: EXCHANGE01
+Date: Sat, 20 Jan 2018 10:20:07 GMT
+Content-Length: 171
+
+<html><head><title>Object moved</title></head><body>
+<h2>Object moved to <a href="https://exchange01.seclab.local/owa/#authRedirect=true">here</a>.</h2>
+</body></html>
+
