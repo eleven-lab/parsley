@@ -30,18 +30,24 @@ examples:
 ```
 
 ## ToDo
-- UDP support
+- UDP support for stream of data
 - mitm gateway
-- parsers for data
+- different parsers for different TCP based application protocols
 
-- configuration of certificate cloning ( dynamic )
-- iptables cleanup
-- parsing of different application protocols
+- Certificate cloning should be configurable
+- iptables cleanup should erase only added rules not all nat table
 - handling of multiple client connections and multiple threads
-- handle listening ports on mitm and service emulation
+- handle listening ports on mitm and different services ( ports )
 - make the project more modular 
 - handling connection reset from server or client
-- do a better formatting 
-- do a logger
+- do a better formatting of the output
+- do a better logging
+- log stuff into a file
 - handle data without EOD
 - handle exceptions better
+- if the server does not have a certificate the program will stall without throwing an exception
+- accept spoofed IP packets without ip tables
+
+## Limitations
+It utilize SOCK_STREAM sockets which are the only one that can be wrapped in a ssl socket.
+

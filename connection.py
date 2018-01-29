@@ -5,35 +5,48 @@ import errno
 from socket import AF_INET, SOCK_STREAM, SO_REUSEADDR, SOL_SOCKET, SHUT_RDWR, IPPROTO_IP
 import time
 import threading
+import logging
 
+from parser.http import *
 #4096
 BUF_SIZE = 8192
 TIMEOUT = 0.2
 RETRY = 4
+DEBUG = 1
+
+def print_debug ( string ):
+	
+	if (DEBUG == 0) : 
+		
+		logging.debug ( string )
+	else: 
+		return
 
 # fts will wait data from client and forward to server
 def forward_to_server ( client, server, clock, slock, client_stop, server_stop ):
 	retry=0
 	roundd = 1
 	while (not server_stop.is_set()):
-		print ("[1] Forward To Server thread BEGIN\t[round %d] [retry %d]" % (roundd, retry) )
+		print_debug ( "[1] Forward To Server thread BEGIN\t[round {}] [retry {}]".format(roundd, retry) )
 		try:
 			clock.acquire()
-			print ("  [1] fts acquired clock! Now is waiting for data from client...")
-			print ("  [1] Recv...")
+			print_debug ("  [1] fts acquired clock! Now is waiting for data from client...")
+			print_debug ("  [1] Recv...")
 			data = client.recv ( BUF_SIZE )
-			#print( "  [1] Received from client:\n", data.decode() )
+			#print_debug( "  [1] Received from client:\n", data.decode() )
 			clock.release()
-			print ("  [1][R] fts released clock! It received some data from client, it could be empty: ", len(data) )
+			print_debug ("  [1][R] fts released clock! It received some data from client, it could be empty: {}".format(len(data)) )
 
 			if ( len(data) > 0 ):
 				#data = data.encode()
+				parse_http ( client.getpeername(), server.getpeername(), data )
+
 				slock.acquire()
-				print ("  [1] fts acquired slock, it will now forward data from client to server")
-				print ("  [1][F] forwarding data to server: ", len(data) )
+				print_debug ("  [1] fts acquired slock, it will now forward data from client to server")
+				print_debug ("  [1][F] forwarding data to server: {}".format(len(data)) )
 				server.sendall( data )
 				slock.release()
-				print ("  [1] fts released slock, it has finished to forward data from client to server")
+				print_debug ("  [1] fts released slock, it has finished to forward data from client to server")
 				retry=0
 				roundd=roundd+1
 			else:
@@ -41,23 +54,23 @@ def forward_to_server ( client, server, clock, slock, client_stop, server_stop )
 				#time.sleep(0.1)
 				#retry = retry + 1
 				#if retry > 2:
-				print ("  [1] data is empty! fts is closing! Connection from client has been closed!")
+				print_debug ("  [1] data is empty! fts is closing! Connection from client has been closed!")
 				client_stop.set() # client has closed the connection brah close the connection with the server
 				break
 		except socket.timeout:
-			print ("  [1] Thread fts Timeout reached!")
+			print_debug ("  [1] Thread fts Timeout reached!")
 			clock.release()
-			print ("  [1] fts released clock because it has received nothing from client for %d seconds" % TIMEOUT )
+			print_debug ("  [1] fts released clock because it has received nothing from client for {} seconds".format(TIMEOUT) )
 			time.sleep(0.1) # need to sleep so ftc can lock on socket
 			roundd=roundd+1
 			retry=retry+1
 			#pass
 			if (retry > RETRY): 
-				print("  [1][!] Retry limit reached!")
+				print_debug("  [1][!] Retry limit reached!")
 				client_stop.set() # probably client has closed connection but did not send any FIN
 				break
 			else: continue
-	print ("[1][!] Forward To Server thread OVER")
+	print_debug ("[1][!] Forward To Server thread OVER")
 
 # ftc will wait data from server and forward to client
 def forward_to_client ( client, server, clock, slock, client_stop, server_stop ):
@@ -65,23 +78,25 @@ def forward_to_client ( client, server, clock, slock, client_stop, server_stop )
 	retry=0
 	roundd = 1
 	while (not client_stop.is_set()):
-		print ("[2] Forward To Client BEGIN\t[round %d] [retry %d]" % (roundd, retry) )
+		print_debug ("[2] Forward To Client BEGIN\t[round {}] [retry {}]".format(roundd, retry) )
 		try:
 			slock.acquire()
-			print ("  [2] ftc acquired slock, now is waiting for data from server to be forwarded to client")
-			print ("  [2] Recv...")
+			print_debug ("  [2] ftc acquired slock, now is waiting for data from server to be forwarded to client")
+			print_debug ("  [2] Recv...")
 			data = server.recv ( BUF_SIZE )
-			#print ( "[2] Received from server:\n", data.decode() )
+			#print_debug ( "[2] Received from server:\n", data.decode() )
 			slock.release()
-			print ("  [2][R] ftc released slock, it received some data from server to be forwarded to client, it could be empty: ", len(data))
+			print_debug ("  [2][R] ftc released slock, it received some data from server to be forwarded to client, it could be empty: {}".format(len(data)) )
 			if ( len(data) > 0 ):
 				#data = data.encode()
+				parse_http ( server.getpeername(), client.getpeername(), data )
+
 				clock.acquire()
-				print ("  [2] ftc acquired clock, it will forward the data from server to client")
-				print ("  [2][F] forwarding data to client: ", len(data) )
+				print_debug ("  [2] ftc acquired clock, it will forward the data from server to client")
+				print_debug ("  [2][F] forwarding data to client: {}".format(len(data)) )
 				client.sendall( data )
 				clock.release()
-				print ("  [2] ftc released clock, it has successfully forwarded data to client")
+				print_debug ("  [2] ftc released clock, it has successfully forwarded data to client")
 				roundd=roundd+1
 				retry=0
 			else:
@@ -89,23 +104,23 @@ def forward_to_client ( client, server, clock, slock, client_stop, server_stop )
 				#time.sleep(0.1)
 				#retry = retry + 1
 				#if retry > 2: 
-				print ("  [2] data is empty! ftc is closing! Connection from server has been closed!")
+				print_debug ("  [2] data is empty! ftc is closing! Connection from server has been closed!")
 				server_stop.set()
 				break
 		except socket.timeout:
-			print ("  [2] Thread ftc Timeout reached!")
+			print_debug ("  [2] Thread ftc Timeout reached!")
 			slock.release()
-			print ("  [2] ftc released slock because it has received nothing from server for %d seconds" % TIMEOUT)
+			print_debug ("  [2] ftc released slock because it has received nothing from server for {} seconds".format(TIMEOUT))
 			time.sleep(0.1)
 			roundd=roundd+1
 			retry=retry+1
 			#pass
 			if (retry > RETRY): 
-				print("  [2][!] Retry limit reached!")
+				print_debug("  [2][!] Retry limit reached!")
 				server_stop.set() # probably server has closed connection but did not send any FIN
 				break
 			else: continue
-	print ("[2][!] Forward To Client OVER")
+	print_debug ("[2][!] Forward To Client OVER")
 
 def handle_connection_stream ( client, server ):
 	try:
@@ -134,16 +149,16 @@ def handle_connection_stream ( client, server ):
 		#time.sleep(60)
 		
 		#th1.join()
-		#print ("Thread 1 finished")
+		#print_debug ("Thread 1 finished")
 		th2.join() # wait for communication with server to be closed
 		# aka wait for FTC to terminate  ----> server closed connection
 
-		print ("Thread 2 finished")
+		print_debug ("Thread 2 finished")
 		# means server has closed connection with me so i need to close connection with client emulating the closure
 		#server_stop.set() # WHAT IF FTS IS IN RECV MODE? OR WORST IS SENDING DATA
 
 		th1.join() # THIS SAVED THE DAY
-		print ("Thread 1 finished")
+		print_debug ("Thread 1 finished")
 		#client_stop.set()
 
 	except KeyboardInterrupt:

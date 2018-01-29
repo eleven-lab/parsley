@@ -4,10 +4,11 @@ from scapy.all import *
 import traceback
 import time
 import sys
+import logging
 
 def ip_to_mac ( IP, interface ):
 	try:
-		print ( "[*] Finding mac for IP address", IP )
+		logging.info ( "[*] Finding mac for IP address {}".format(IP) )
 		arp_rq = ARP()
 		arp_op = 1 # honest arp request
 		arp_rq.hwdst = "ff:ff:ff:ff:ff:ff"
@@ -20,7 +21,7 @@ def ip_to_mac ( IP, interface ):
 		# check if IP does not exist
 		for snd,rcv in ans:
 			mac = rcv[ARP].underlayer.src
-			print ( "Found", mac )
+			logging.info ( "Found {}".format(mac) )
 			return mac
 
 		print ( "[!] It seems IP address is unreachable. No mac found. Exiting.." )
@@ -28,15 +29,15 @@ def ip_to_mac ( IP, interface ):
 
 	except OSError as ose:
 		if ( ose.errno == 19 ):
-			print("[!] The interface %s does not exist!" % interface)
+			logging.error ("[!] The interface {} does not exist!".format(interface))
 			#print ( traceback.format_exc() )
 			return
 		else:
-			print ("[!] %s is not a valid IP address!" % IP )
+			logging.error ("[!] {} is not a valid IP address!".format(IP) )
 			#print ( traceback.format_exc() )
 			return
 	except socket.error:
-		print ( traceback.format_exc() )
+		logging.error ( exc_info=True )
 		return
 
 def iptables_clean ():

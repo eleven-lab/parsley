@@ -5,6 +5,7 @@ from os.path import exists, join
 from io import open
 import traceback
 import time
+import logging 
 
 KEYFILE = 'server_key.pem'
 CERTFILE = 'server_cert.pem'
@@ -12,7 +13,7 @@ CERTFILE = 'server_cert.pem'
 def create_cert(server_subj, cert_dir):
 	#if not exists(join(cert_dir, CERTFILE)) \
 	#or not exists(join(cert_dir, KEYFILE)):
-	print ("Creating server key and cert..")
+	logging.info ("[*] Creating server key and cert..")
 	#create key pair
 	k = crypto.PKey()
 	k.generate_key(crypto.TYPE_RSA, 1024)
@@ -46,7 +47,7 @@ def clone_certificate ( cert ):
 	# X.509 Distinguished Name ---> get_components(): Returns the components of this name, as a sequence of 2-tuples.
 	# print ( x509.get_subject().get_components() )
 	create_cert ( x509.get_subject(), "." )
-	print ( x509.get_subject() )
+	# print ( x509.get_subject() )
 	return cert
 
 def get_cert_from_endpoint(server, port=443):
@@ -55,7 +56,7 @@ def get_cert_from_endpoint(server, port=443):
 		#print (cert)
 	except Exception:
 		#log.error('Unable to retrieve certificate from {0}'.format(server))
-		print ( "[!] Error in getting server certificate! Maybe it does not provide a ssl service!" )
+		logging.error ( "[!] Error in getting server certificate! Maybe it does not provide a ssl service!" )
 		cert = None
 	if not cert:
 		return None

