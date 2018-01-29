@@ -3,23 +3,29 @@ import errno
 from scapy.all import *
 import traceback
 import time
+import sys
 
 def ip_to_mac ( IP, interface ):
 	try:
+		print ( "[*] Finding mac for IP address", IP )
 		arp_rq = ARP()
 		arp_op = 1 # honest arp request
 		arp_rq.hwdst = "ff:ff:ff:ff:ff:ff"
 		arp_rq.pdst = IP
 
-		ans, unans = sr ( arp_rq, retry=10, timeout=2, iface = interface, verbose=0 )
+		ans, unans = sr ( arp_rq, retry=4, timeout=2, iface = interface, verbose=0 )
 		#print (ans)
 		#print (unans)
 
 		# check if IP does not exist
 		for snd,rcv in ans:
-			return rcv[ARP].underlayer.src
+			mac = rcv[ARP].underlayer.src
+			print ( "Found", mac )
+			return mac
 
-		return None
+		print ( "[!] It seems IP address is unreachable. No mac found. Exiting.." )
+		sys.exit()
+
 	except OSError as ose:
 		if ( ose.errno == 19 ):
 			print("[!] The interface %s does not exist!" % interface)
