@@ -26,13 +26,14 @@ def print_debug ( string ):
 def forward_to_server ( client, server, clock, slock, client_stop, server_stop ):
 	retry=0
 	roundd = 1
+	total = 0
 	while (not server_stop.is_set()):
 		print_debug ( "[1] Forward To Server thread BEGIN\t[round {}] [retry {}]".format(roundd, retry) )
 		try:
 			clock.acquire()
 			print_debug ("  [1] fts acquired clock! Now is waiting for data from client...")
 			print_debug ("  [1] Recv...")
-			data = client.recv ( BUF_SIZE )
+			data = client.recv ( BUF_SIZE ) # ssl.SSLError: [SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca ---> connection reset by client browser FIREFOX ---> not catched
 			#print_debug( "  [1] Received from client:\n", data.decode() )
 			clock.release()
 			print_debug ("  [1][R] fts released clock! It received some data from client, it could be empty: {}".format(len(data)) )
@@ -49,12 +50,14 @@ def forward_to_server ( client, server, clock, slock, client_stop, server_stop )
 				print_debug ("  [1] fts released slock, it has finished to forward data from client to server")
 				retry=0
 				roundd=roundd+1
+				total = total + len(data)
 			else:
 				# it means that client closed the connection or it's not sending anything
 				#time.sleep(0.1)
 				#retry = retry + 1
 				#if retry > 2:
 				print_debug ("  [1] data is empty! fts is closing! Connection from client has been closed!")
+				logging.debug("[-] Received empty data from client which means he closed the connection!")
 				client_stop.set() # client has closed the connection brah close the connection with the server
 				break
 		except socket.timeout:
@@ -66,17 +69,23 @@ def forward_to_server ( client, server, clock, slock, client_stop, server_stop )
 			retry=retry+1
 			#pass
 			if (retry > RETRY): 
+				logging.debug("[-] No responses from client maybe he finished or has the connection closed!")
 				print_debug("  [1][!] Retry limit reached!")
 				client_stop.set() # probably client has closed connection but did not send any FIN
 				break
 			else: continue
+		except socket.error: # getpeer error, recv error, sendall error
+			logging.error ("[!] Error is thread socket handling!", exc_info=True )
+			break
 	print_debug ("[1][!] Forward To Server thread OVER")
+	logging.info ( "[*] Total data size forwarded to server from client {}".format( total ) )
 
 # ftc will wait data from server and forward to client
 def forward_to_client ( client, server, clock, slock, client_stop, server_stop ):
 	
 	retry=0
 	roundd = 1
+	total = 0
 	while (not client_stop.is_set()):
 		print_debug ("[2] Forward To Client BEGIN\t[round {}] [retry {}]".format(roundd, retry) )
 		try:
@@ -99,12 +108,14 @@ def forward_to_client ( client, server, clock, slock, client_stop, server_stop )
 				print_debug ("  [2] ftc released clock, it has successfully forwarded data to client")
 				roundd=roundd+1
 				retry=0
+				total = total + len(data)
 			else:
 				# it means server has closed the connection or it's not sending anything
 				#time.sleep(0.1)
 				#retry = retry + 1
 				#if retry > 2: 
 				print_debug ("  [2] data is empty! ftc is closing! Connection from server has been closed!")
+				logging.debug("[-] Received empty data from server which means he closed the connection!")
 				server_stop.set()
 				break
 		except socket.timeout:
@@ -116,11 +127,16 @@ def forward_to_client ( client, server, clock, slock, client_stop, server_stop )
 			retry=retry+1
 			#pass
 			if (retry > RETRY): 
+				logging.debug("[-] No responses from server maybe he finished or has the connection closed!")
 				print_debug("  [2][!] Retry limit reached!")
 				server_stop.set() # probably server has closed connection but did not send any FIN
 				break
 			else: continue
+		except socket.error:
+			logging.error ("[!] Error is thread socket handling!", exc_info=True )
+			break
 	print_debug ("[2][!] Forward To Client OVER")
+	logging.info ( "[*] Total data size forwarded to client from server {}".format( total ) )
 
 def handle_connection_stream ( client, server ):
 	try:
@@ -153,12 +169,12 @@ def handle_connection_stream ( client, server ):
 		th2.join() # wait for communication with server to be closed
 		# aka wait for FTC to terminate  ----> server closed connection
 
-		print_debug ("Thread 2 finished")
+		logging.debug ("Thread 2 finished")
 		# means server has closed connection with me so i need to close connection with client emulating the closure
 		#server_stop.set() # WHAT IF FTS IS IN RECV MODE? OR WORST IS SENDING DATA
 
 		th1.join() # THIS SAVED THE DAY
-		print_debug ("Thread 1 finished")
+		logging.debug ("Thread 1 finished")
 		#client_stop.set()
 
 	except KeyboardInterrupt:

