@@ -6,6 +6,18 @@ import time
 import sys
 import logging
 
+import socket
+from socket import SHUT_WR
+
+def close_socket( socket ):
+	if ( socket != None ):
+		try:
+			#socket.shutdown( SHUT_WR ) # send a FIN to endpoint peer and remains for receiving additional data but BLOCK sending more data to endpoint peer
+			#time.sleep(0.1) # sleep before closing the socket, so it can send eventual acks to additional data from peer
+			socket.close()
+		except socket.error:
+			logging.error ( "[!] Error on closing socket {}".format( socket ), exc_info=True )
+	
 def ip_to_mac ( IP, interface ):
 	try:
 		logging.info ( "[*] Finding mac for IP address {}".format(IP) )
