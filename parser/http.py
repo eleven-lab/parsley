@@ -43,7 +43,7 @@ def parse_http ( src, dst, data ):
 		'''
 		#return output
 		return
-	except Exception:
+	except Exception: # VERY BAD
 		#print ( "[!] It seems data can't be decoded!" )
 		#print( traceback.format_exc() )
 		return
