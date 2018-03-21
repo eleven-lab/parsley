@@ -3,70 +3,101 @@ import OpenSSL
 from OpenSSL import crypto, SSL
 from os.path import exists, join
 from io import open
-import traceback
-import time
+
 import logging 
+import os
 
-#KEYFILE = 'server_key.pem'
-#CERTFILE = 'server_cert.pem'
+def create_cert():
+	CERTFILE = "localhost.crt"
+	KEYFILE = "localhost.key"
+	# if certificate from a certain server already exist? 
+	if not exists(join(CERTFILE)) \
+	or not exists(join(KEYFILE)):
+		try:
+			logging.info ("Creating server key and cert..")
 
-def create_cert(server_cert, server_subj, cert_dir):
+			#create key pair
+			k = crypto.PKey()
+			k.generate_key(crypto.TYPE_RSA, 1024)
 
-	CN = server_subj.commonName
+			#create self signed certificate
+			cert = crypto.X509()
+			cert.get_subject().CN = "localhost"
+			#cert.get_subject().C = raw_input("Country: ")
+			#cert.get_subject().ST = raw_input("State: ")
+			#cert.get_subject().L = raw_input("City: ")
+			#cert.get_subject().O = raw_input("Organization: ")
+			#cert.get_subject().OU = raw_input("Organizational Unit: ")
+
+			cert.set_serial_number(1000) # Serial should be dynamic
+			
+			cert.gmtime_adj_notBefore(0)
+			cert.gmtime_adj_notAfter(10*365*24*60*60)
+
+			# You can pass the key file (.key) for anything that needs to validate a connection to the server, but the certificate (.crt) must remain private.
+			cert.set_pubkey(k)
+			cert.set_issuer(cert.get_subject()) # autosigned aka root CA ---> equal to subject of this certificate --> issuer=subject
+
+			# Sign the key with the public key using SHA-256 hash.
+			cert.sign(k, 'sha256')
+
+			with open('localhost.pem', 'wb') as outfile:
+				outfile.write( crypto.dump_certificate(crypto.FILETYPE_PEM, cert) )
+				outfile.write( crypto.dump_privatekey (crypto.FILETYPE_PEM, k   ) )
+
+			#create files
+			#open(join(".", CERTFILE), "wb").write(
+			#crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+
+			#open(join(".", KEYFILE ), "wb").write(
+			#crypto.dump_privatekey (crypto.FILETYPE_PEM, k   ))
+
+			#command = "cat localhost.crt localhost.key > localhost.pem"
+			#os.system ( command )
+		except Exception:
+			logging.error("Error in creating the certificate!", exc_info=True )
+			raise Exception
+	else:
+		logging.info ("Certificate and key for server already exist.." ) 
+
+def check_cert_validity ( cert ):
+	return
+
+def spoof_cert ( server_cert, ca_cert ): # x509 Objects not strings
+	CN = server_cert.get_subject().commonName
 	print ( CN )
 	CERTFILE = "%s_cert.pem" % CN
-	KEYFILE = "%s_key.pem" % CN
+	cert_dir = "certificates/"
 
-	# if certificate from a certain server already exist? 
-	if not exists(join(cert_dir, CERTFILE)) \
-	or not exists(join(cert_dir, KEYFILE)):
-		logging.info ("[*] Creating server key and cert..")
-		#create key pair
-		k = crypto.PKey()
-		k.generate_key(crypto.TYPE_RSA, 1024)
+	# set issuer of server_cert with subject of ca_cert
+	server_cert.set_issuer = ca_cert.get_subject()
 
-		#create self signed certificate
-		cert = crypto.X509()
-		cert.set_serial_number(1000) # Serial should be dynamic
-		#cert.get_subject().CN = "localhost" # TO CHANGE
-		cert.set_subject( server_subj ) 
-		cert.gmtime_adj_notBefore(0)
-		cert.gmtime_adj_notAfter(10*365*24*60*60)
-		cert.set_pubkey(k)
-		cert.set_issuer(cert.get_subject()) # autosigned aka root CA ---> equal to subject of this certificate --> issuer=subject
-		cert.sign(k, 'sha256')
+	server_cert.set_pubkey = ca_cert.get_pubkey()
 
-		#create files
-		open(join(cert_dir, CERTFILE), "wb").write(
-		crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+	# sign the certificate using ca_cert key
+	server_cert.sign ( ca_cert.get_pubkey(), 'sha256' )
 
-		open(join(cert_dir, KEYFILE ), "wb").write(
-		crypto.dump_privatekey (crypto.FILETYPE_PEM, k   ))
-	else:
-		logging.info ("[*] Certificate and key for server {} already exist..".format(CN) ) 
+	# dump new certificate in directory
+	open(join(cert_dir, CERTFILE), "wb").write(
+	crypto.dump_certificate(crypto.FILETYPE_PEM, server_cert))
+
+	return CERTFILE
 
 
-# creates a certificate and key in a directory, certificate should be similar to the real one
-def clone_certificate ( cert ):
+def x509_cert ( cert ):
 	# loading certificate in x509 object
 	# Load a certificate (X509) from the string buffer encoded with the type type.
+	
 	x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
-	# what do i need to clone a certificate? What do i need to modify?
-	# class OpenSSL.crypto.X509: An X.509 certificate.
-	# X.509 object ----> get_subject() ----> Return the subject of this certificate. This creates a new X509Name that wraps the underlying subject name field on the certificate. 
-	# X.509 Distinguished Name ---> get_components(): Returns the components of this name, as a sequence of 2-tuples.
-	# print ( x509.get_subject().get_components() )
-	create_cert ( x509, x509.get_subject(), "." )
-	# print ( x509.get_subject() )
-	return x509.get_subject().commonName
+	return x509
 
 def get_cert_from_endpoint(server, port=443):
 	try:
+		# returns it as a PEM-encoded string ---> # PEM formatted key, the base64 encoded x509 ASN.1 key.
 		cert = ssl.get_server_certificate((server, port))
-		#print (cert)
 	except Exception:
 		#log.error('Unable to retrieve certificate from {0}'.format(server))
-		logging.error ( "[!] Error in getting server certificate! Maybe it does not provide a ssl service!" )
+		logging.error ( "Error in getting server certificate! Maybe it does not provide a ssl service!" )
 		cert = None
 	if not cert:
 		return None

@@ -2,3 +2,5 @@
 *.pyc
 *.pem
 __pycache__/
+test/
+certificates/
