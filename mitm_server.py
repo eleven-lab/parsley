@@ -24,9 +24,12 @@ class client_session():
 
 class mitm_ssl_context():
 	def __init__( self, s, certificate ):
+		
 		self.m, self.ctx = self.create_proxy_ssl_context ( s, certificate ) # listening socket and ssl context
 		
 		self.cert = certificate # path of certificate
+		#self.ca = # x509 object of certificate, so i don't need to reopen the file eache time
+
 		#self.print_context()
 
 		self.sessions = [] # list of sessions or connections
@@ -36,11 +39,15 @@ class mitm_ssl_context():
 
 	def create_proxy_ssl_context ( self, s, cert ):
 		try:
+			# https://docs.python.org/3/library/ssl.html#ssl.create_default_context
 			ctx = ssl.create_default_context() # PROTOCOL_SSLv23, PROTOCOL_TLSv1, ssl.PROTOCOL_TLS_SERVER
 
+			# https://docs.python.org/3/library/ssl.html#ssl.SSLContext.load_cert_chain
 			ctx.load_cert_chain( certfile=cert, keyfile=cert )
 
 			ctx.check_hostname = False # without this context need a hostname for the server
+
+			# https://docs.python.org/3/library/ssl.html#ssl.SSLContext.set_servername_callback
 			ctx.set_servername_callback ( self.server_callback )
 			ctx.verify_mode = ssl.CERT_NONE # ssl.CERT_REQUIRED # this was important otherwise ERROR i want client certificate
 
@@ -110,8 +117,9 @@ class mitm_ssl_context():
 
 		return s # return socket
 
+	# https://docs.python.org/3/library/ssl.html#ssl.SSLContext.set_servername_callback
 	def server_callback ( self, c,hostname,ctx ):# ctx connessione con mitm e client
-		logging.info("client wants to connect to {}".format( hostname ))
+		logging.info("\n{}\nclient wants to connect to {}".format( c, hostname ))
 
 		cl = client_session( c, hostname )
 		cl.server = self.connect_to ( hostname )
@@ -119,18 +127,38 @@ class mitm_ssl_context():
 		self.sessions.append( cl ) # append client_session object
 
 		# self.hostname = hostname
-		
-		server_cert = get_cert_from_endpoint ( hostname, 443 ) # get end entity certificate from server
-		
-		with open(self.cert, "rb") as my_cert_file:
-			my_cert_text = my_cert_file.read()
-			ca_cert = x509_cert( my_cert_text )
-
-		name = spoof_cert ( x509_cert(server_cert) , ca_cert )
-
+		name = hash_string( hostname )
 		name = "certificates/" + name
-		ctx.load_cert_chain( certfile = name, keyfile = name )
+
+		if ( not os.path.exists( name ) ):
+			print ( "Creating file {}".format( name ) )
+			server_cert = get_cert_from_endpoint ( hostname, 443 ) # get end entity certificate from server, base64 format
+			
+			with open(self.cert, "rb") as my_cert_file:
+				my_cert_text = my_cert_file.read()
+				key = crypto.load_privatekey ( crypto.FILETYPE_PEM, my_cert_text ) # get private key
+				ca_cert = x509_cert( my_cert_text )
+
+			print ( ca_cert.get_subject() )
+			name = spoof_cert ( x509_cert(server_cert) , ca_cert, key )
+			name = "certificates/" + name
+
 		
+		'''
+		Load a private key and the corresponding certificate. The certfile string must be the path to a single file in PEM format containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity. The keyfile string, if present, must point to a file containing the private key in. Otherwise the private key will be taken from certfile as well. See the discussion of Certificates for more information on how the certificate is stored in the certfile.
+		'''
+
+		cc = ssl.create_default_context() 
+		cc.check_hostname = False # ValueError: check_hostname requires server_hostname
+		#cc.verify_mode = ssl.CERT_NONE
+
+		# https://docs.python.org/3/library/ssl.html#ssl.SSLContext.load_cert_chain
+		cc.load_cert_chain( certfile = name, keyfile = self.cert )
+
+		# https://stackoverflow.com/questions/41996833/using-ssl-context-set-servername-callback-in-python
+		c.context = cc
+		#cc.wrap_socket( c, server_side=True, do_handshake_on_connect=True ) 
+
 		return None
 
 	def handle_exception( self, e ): # TODO

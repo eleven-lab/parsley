@@ -4,6 +4,7 @@ import logging
 import time
 
 import errno
+import hashlib
 
 import OpenSSL
 from OpenSSL import crypto, SSL
@@ -72,4 +73,9 @@ def close_socket( s ):
 		except Exception:
 			logging.error ( "Error on closing socket {}".format( s ), exc_info=True )
 			raise
+
+def hash_string( mystring ):
+	hash_object = hashlib.md5(mystring.encode())
+	hashstr = hash_object.hexdigest()
+	return hashstr
 

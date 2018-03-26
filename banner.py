@@ -3,6 +3,7 @@ RED1="\033[1;0m"
 GREEN0="\033[1;32m"
 GREEN1="\033[1;0m"
 
+
 version = 0.02
 banner="""{}\n
  ____                _            

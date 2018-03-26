@@ -7,6 +7,8 @@ from io import open
 import logging 
 import os
 
+from utils import hash_string
+
 def create_cert():
 	CERTFILE = "localhost.crt"
 	KEYFILE = "localhost.key"
@@ -63,26 +65,32 @@ def create_cert():
 def check_cert_validity ( cert ):
 	return
 
-def spoof_cert ( server_cert, ca_cert ): # x509 Objects not strings
+def spoof_cert ( server_cert, ca_cert, key ): # x509 Objects not strings
 	CN = server_cert.get_subject().commonName
 	print ( CN )
-	CERTFILE = "%s_cert.pem" % CN
+	#CERTFILE = "%s_cert.pem" % CN
+	CERTFILE = hash_string ( CN )
 	cert_dir = "certificates/"
+	temp = cert_dir + CERTFILE
 
 	# set issuer of server_cert with subject of ca_cert
-	server_cert.set_issuer = ca_cert.get_subject()
+	print ( ca_cert.get_subject() )
+	server_cert.set_issuer( ca_cert.get_subject() )
+	print ( server_cert.get_issuer() )
 
-	server_cert.set_pubkey = ca_cert.get_pubkey()
+	server_cert.set_pubkey( ca_cert.get_pubkey() )
 
 	# sign the certificate using ca_cert key
-	server_cert.sign ( ca_cert.get_pubkey(), 'sha256' )
+	#server_cert.sign ( ca_cert.get_pubkey(), 'sha256' )
+	#key = crypto.load_privatekey ( crypto.FILETYPE_PEM, ca_cert )
+	server_cert.sign ( key, 'sha256' )
 
 	# dump new certificate in directory
 	open(join(cert_dir, CERTFILE), "wb").write(
 	crypto.dump_certificate(crypto.FILETYPE_PEM, server_cert))
 
 	return CERTFILE
-
+	
 
 def x509_cert ( cert ):
 	# loading certificate in x509 object

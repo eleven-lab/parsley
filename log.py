@@ -1,4 +1,13 @@
 import logging
+R, B, Y, C, W = '\033[1;31m', '\033[1;37m', '\033[93m', '\033[1;30m', '\033[0m'
+'''
+class logger:
+	def __init__ ( self ):
+		return
+
+	def __repr__ ( self ):
+		return ''
+'''
 
 def set_logging():
 	try:
