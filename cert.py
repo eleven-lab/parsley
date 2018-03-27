@@ -67,16 +67,16 @@ def check_cert_validity ( cert ):
 
 def spoof_cert ( server_cert, ca_cert, key ): # x509 Objects not strings
 	CN = server_cert.get_subject().commonName
-	print ( CN )
+	#print ( CN )
 	#CERTFILE = "%s_cert.pem" % CN
 	CERTFILE = hash_string ( CN )
 	cert_dir = "certificates/"
 	temp = cert_dir + CERTFILE
 
 	# set issuer of server_cert with subject of ca_cert
-	print ( ca_cert.get_subject() )
+	#print ( ca_cert.get_subject() )
 	server_cert.set_issuer( ca_cert.get_subject() )
-	print ( server_cert.get_issuer() )
+	#print ( server_cert.get_issuer() )
 
 	server_cert.set_pubkey( ca_cert.get_pubkey() )
 

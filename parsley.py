@@ -26,6 +26,7 @@ def main_parsley( configs ):
 	return
 
 def init_mitm( configs ):
+	logging.info("Init mitm server...")
 	m = create_socket()
 	bind_socket( m, configs['mitm']['ip'], PORT )
 
@@ -39,32 +40,6 @@ def start_mitm( ctx ):
 	ctx.listen_for_connections ( CONN )
 	ctx.accept_client_connections ()
 
-	'''
-	while ( True ):
-		try:
-			c,addr = ctx.m.accept()
-			logging.debug("\n-------------------------------")
-			logging.debug ("\n[{}] Received connection from: {}".format(time.asctime( time.localtime(time.time()) ), addr))
-
-			logging.info ("hostname {}".format(ctx.hostname) )
-			s = create_socket()
-			wrap_ssl_socket( s )
-			connect_to_server( s, ctx.hostname, 443 )
-
-			handle_connection ( c, s )
-
-			logging.debug ("[{}] Closing connection with server...".format(time.asctime( time.localtime(time.time()) )))
-			close_socket( s )
-			logging.debug ("[{}] Closing connection with client...".format(time.asctime( time.localtime(time.time()) )))
-			close_socket( c )
-			logging.debug("-------------------------------")
-		except Exception:
-			logging.error ( exc_info=True )
-			raise
-		except KeyboardInterrupt:
-			logging.info( "[Ctrl+C]: closing program..." )
-			raise
-	'''
 
 def clean_parsley( configs ):
 	# remove iptables rules

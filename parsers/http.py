@@ -3,6 +3,7 @@ import re
 import logging
 words = ['GET','POST','OK' ]
 
+LENGHT = 1024
 '''
 if re.search(r'\bThis is correct\b', text):
     print('correct')
@@ -21,16 +22,19 @@ def find_credentials ( fields ):
 
 def parse_http ( src, dst, data ):
 	try:
-		logging.info ( "{} ----> {} SIZE: {}".format(src,dst,len(data)) )
+		#logging.debug ( "{} ----> {} SIZE: {}".format(src,dst,len(data)) )
 		data = data.decode()
 		fields = data.split("\r\n")
 		#fields = fields[1:] #ignore the GET / HTTP/1.1
 		#output = {}
 		for word in fields:
-			if ( len( fields[0] ) < 2048 ):
-				logging.info ("{}".format( word ) ) 
-			if ( re.search( word, fields[0] ) and len( fields[0] ) < 2048 ): # u schif
-				#logging.info ("{} ----> {}: {}".format( src, dst, fields[0] ) )
+			'''
+			if ( len( fields[0] ) < LENGHT ):
+				#logging.debug ( "{} ----> {} SIZE: {}".format(src,dst,len(data)) )
+				#logging.info ("{}\n".format( word ) ) 
+			'''
+			if ( re.search( word, fields[0] ) and len( fields[0] ) < LENGHT ): # u schif
+				logging.info ("{} ----> {}: {}".format( src, dst, fields[0] ) )
 				#logging.info ("{}".format( fields[0] ) )
 				if ( 'POST' in fields[0] ): #post request
 					creds = find_credentials ( fields )
