@@ -20,10 +20,10 @@ def wrap_ssl_socket ( s ): # socket should be SOCK_STREAM, to server socket
 
 def connect_to_server( s, ip, port ):
 	
-	logging.debug("Connecting to server {}:{}...".format(ip,port))
+	#logging.debug("Connecting to server {}:{}...".format(ip,port))
 	
 	if ( port == 443 ):
-		logging.debug("Doing TLS handshake...")
+		#logging.debug("Doing TLS handshake...")
 		s = wrap_ssl_socket( s )
 
 	while ( True ):
@@ -33,7 +33,7 @@ def connect_to_server( s, ip, port ):
 			if ( conn == -1 ):
 				raise Exception
 			else:
-				logging.debug( "[{}] Connection enstablished!\n{}\n".format(time.asctime( time.localtime(time.time()) ), s ) )
+				#logging.debug( "[{}] Connection enstablished!\n{}\n".format(time.asctime( time.localtime(time.time()) ), s ) )
 				return s
 
 		except Exception as e:

@@ -51,7 +51,7 @@ class connection_agent ( threading.Thread ):
 				break
 
 			if ( client_data != -1 ): # RECEIVED SOMETHING FROM CLIENT
-				parse_http ( client.getpeername(), server.getpeername(), client_data )
+				#parse_http ( client.getpeername(), server.getpeername(), client_data )
 
 				#logging.debug("[{}] (2) sending data to server...".format(time.asctime( time.localtime(time.time()) )) )
 				self._Sendall( server, client_data ) # this will send ALSO FIN by client
@@ -59,7 +59,7 @@ class connection_agent ( threading.Thread ):
 			server_fin, server_data = self._Recv( server )
 			
 			if ( server_data != -1 ): 
-				parse_http ( server.getpeername(), client.getpeername(), server_data )
+				#parse_http ( server.getpeername(), client.getpeername(), server_data )
 				#logging.debug("[{}] (4) sending data to client...".format(time.asctime( time.localtime(time.time()) )) )
 				self._Sendall( client, server_data ) # server didn't sent anything
 

@@ -26,7 +26,7 @@ def main_parsley( configs ):
 	return
 
 def init_mitm( configs ):
-	logging.info("Init mitm server...")
+	logging.info("Init mitm tcp server...")
 	m = create_socket()
 	bind_socket( m, configs['mitm']['ip'], PORT )
 
@@ -80,9 +80,13 @@ def main():
 		# initialize parsley rules
 		init_parsley( configs )
 
+		
 		try:
 			# begin parsley mitm
 			main_parsley( configs )
+
+			#while ( True ):
+			#	pass
 
 		except ( Exception, KeyboardInterrupt ):
 			clean_parsley( configs )

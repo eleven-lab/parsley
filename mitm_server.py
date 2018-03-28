@@ -37,19 +37,18 @@ class clean_sessions_agent ( threading.Thread ):
 		self.clean()
 
 	def clean( self ):
-		timeout = 5
+		timeout = 10
 		
 
 		while ( True ):
 			delete_list = []
-
+			logging.debug( "\n\nChecking terminated threads..." )
 			self.mutex.acquire()
-			#print ( len( self.sessions ) ) 
+			logging.debug ( "Total threads: {}".format(len( self.sessions )) ) 
 			for x in range(0, len( self.sessions ) ) :
-				#print ( x )
+				logging.debug ( "Checking thread no: {}".format(x) )
 				if ( self.check_session ( self.sessions[ x ] ) ):
-					#logging.debug ( "Cleaning session no.{}".format( x ) )
-					#print ( "deleted %d!" % x )
+					logging.debug ( "Thread is dead! Cleaning session no. {}".format( x ) )
 					delete_list.append( x )
 					
 			d = 0
@@ -58,6 +57,7 @@ class clean_sessions_agent ( threading.Thread ):
 				d += 1
 			
 			self.mutex.release()
+			logging.debug( "Sleeping..." )
 			time.sleep( timeout )
 	
 	def check_session( self, session ):
@@ -126,13 +126,19 @@ class mitm_ssl_context():
 
 		while ( True ):
 			try:
-				logging.debug("Waiting for client connections..")
+				#logging.debug("Waiting for client connections..")
 				c, addr = self.m.accept() # server_callback methos
+
+				self.sessions_mutex.acquire()
 				index = self.search_for ( c ) #  search for client session
+				if ( index != None ):# sometimes index is none cause there is no session with c socket
+					sess = self.sessions[index]
+				self.sessions_mutex.release()
 
 				# WHAT IF IT HAS MULTIPLE ACTIVE CONNECTIONS?? sockets are differents mormon
-				self.handle_client_session( self.sessions[index] )
-
+				if ( index != None ):
+					self.handle_client_session( sess )
+				
 				# POP SESSION WHEN IS FINISHED! FOR NOW WAIT THE THREAD TO FINISH
 				# del self.sessions[index]
 
@@ -146,12 +152,11 @@ class mitm_ssl_context():
 		return 
 
 	def search_for ( self, c ):# what is i? should client socket
-		self.sessions_mutex.acquire()
+		# return None if not found!
 		for i, sess in enumerate(self.sessions):
-			if c == sess.client:
-				self.sessions_mutex.release()
+			if ( c == sess.client ):
 				return i
-		self.sessions_mutex.release()
+		logging.error("Something is wrong! client socket was not found on sessions list!\n{}".format ( c ) )
 
 	def handle_client_session ( self, session ):
 		#client = session.client
@@ -183,54 +188,61 @@ class mitm_ssl_context():
 
 	# https://docs.python.org/3/library/ssl.html#ssl.SSLContext.set_servername_callback
 	def server_callback ( self, c,hostname,ctx ):# ctx connessione con mitm e client
-		logging.info("\n{}\nclient wants to connect to {}".format( c, hostname ))
+		try:
+			#logging.info("\n{}\nclient wants to connect to {}".format( c, hostname ))
 
-		cl = client_session( c, hostname )
-		cl.server = self.connect_to ( hostname )
+			cl = client_session( c, hostname )
+			cl.server = self.connect_to ( hostname )
 
-		sa = connection_agent( cl.client, cl.server )
-		sa.setDaemon ( True )
-		cl.t = sa
+			sa = connection_agent( cl.client, cl.server )
+			sa.setDaemon ( True )
+			cl.t = sa
 
-		self.sessions_mutex.acquire()
-		self.sessions.append( cl ) # append client_session object
-		self.sessions_mutex.release()
+			self.sessions_mutex.acquire()
+			self.sessions.append( cl ) # append client_session object
+			self.sessions_mutex.release()
 
-		# self.hostname = hostname
-		name = hash_string( hostname )
-		name = "certificates/" + name
-
-		if ( not os.path.exists( name ) ):
-			logging.info ( "Creating file {}".format( name ) )
-			server_cert = get_cert_from_endpoint ( hostname, 443 ) # get end entity certificate from server, base64 format
-			
-			with open(self.cert, "rb") as my_cert_file:
-				my_cert_text = my_cert_file.read()
-				key = crypto.load_privatekey ( crypto.FILETYPE_PEM, my_cert_text ) # get private key
-				ca_cert = x509_cert( my_cert_text )
-
-			name = spoof_cert ( x509_cert(server_cert) , ca_cert, key )
+			# self.hostname = hostname
+			name = hash_string( hostname )
 			name = "certificates/" + name
-		
-		
-		'''
-		Load a private key and the corresponding certificate. The certfile string must be the path to a single file in PEM format containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity. The keyfile string, if present, must point to a file containing the private key in. Otherwise the private key will be taken from certfile as well. See the discussion of Certificates for more information on how the certificate is stored in the certfile.
-		'''
-		
-		cc = ssl.create_default_context() 
-		cc.check_hostname = False # ValueError: check_hostname requires server_hostname
-		#cc.verify_mode = ssl.CERT_NONE
 
-		# https://docs.python.org/3/library/ssl.html#ssl.SSLContext.load_cert_chain
-		cc.load_cert_chain( certfile = name, keyfile = self.cert )
+			if ( not os.path.exists( name ) ):
+				#logging.info ( "Creating file {}".format( name ) )
+				server_cert = get_cert_from_endpoint ( hostname, 443 ) # get end entity certificate from server, base64 format
+				
+				with open(self.cert, "rb") as my_cert_file:
+					my_cert_text = my_cert_file.read()
+					key = crypto.load_privatekey ( crypto.FILETYPE_PEM, my_cert_text ) # get private key
+					ca_cert = x509_cert( my_cert_text )
 
-		# https://stackoverflow.com/questions/41996833/using-ssl-context-set-servername-callback-in-python
-		c.context = cc
-		#cc.wrap_socket( c, server_side=True, do_handshake_on_connect=True ) 
-		
-		return None
+				name = spoof_cert ( x509_cert(server_cert) , ca_cert, key )
+				name = "certificates/" + name
+			
+			
+			'''
+			Load a private key and the corresponding certificate. The certfile string must be the path to a single file in PEM format containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity. The keyfile string, if present, must point to a file containing the private key in. Otherwise the private key will be taken from certfile as well. See the discussion of Certificates for more information on how the certificate is stored in the certfile.
+			'''
+			
+			cc = ssl.create_default_context() 
+			cc.check_hostname = False # ValueError: check_hostname requires server_hostname
+			#cc.verify_mode = ssl.CERT_NONE
+
+			# https://docs.python.org/3/library/ssl.html#ssl.SSLContext.load_cert_chain
+			cc.load_cert_chain( certfile = name, keyfile = self.cert )
+
+			# https://stackoverflow.com/questions/41996833/using-ssl-context-set-servername-callback-in-python
+			c.context = cc
+			#cc.wrap_socket( c, server_side=True, do_handshake_on_connect=True ) 
+			
+			return None
+		except Exception:
+			logging.error( "Error in server callback!", exc_info=True )
+			raise
 
 	def handle_exception( self, e ): # TODO
+		# Error: [Errno 0] Error --> self._sslobj.do_handshake() --> OSError: [Errno 0] Error
+		# CLIENT CLOSE THE CONNECTION DURING THE HANDSHAKE
+
 		logging.error( "Error: {}".format(e), exc_info=True )
 		return 0
 

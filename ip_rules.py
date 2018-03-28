@@ -33,6 +33,11 @@ def iptables_accept ( configs ):
 
 	# -s source -d destination -p protocol
 	command = "iptables -t nat -A PREROUTING -i " + configs['interface'] + " -p TCP --dport " + PORT + " -j DNAT --to " + configs['mitm']['ip']
+	# with this rule only https requests will be catched the other will be forwarded to the gateway with the same source IP ( as the DNS requests )
+	os.system ( command )
+
+	#command = "iptables -t nat -A PREROUTING -i " + configs['interface'] + " -p TCP -s " + configs['target']['ip'] + " -m multiport --dport " + PORT + ",80 -j DNAT --to " + configs['mitm']['ip']
+	command = "iptables -t nat -A POSTROUTING -p UDP -s " + configs['target']['ip'] + " -j SNAT --to " + configs['mitm']['ip']
 
 	logging.info( command )
 
