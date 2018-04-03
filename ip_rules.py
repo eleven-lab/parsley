@@ -38,7 +38,10 @@ def iptables_accept ( configs ):
 
 	#command = "iptables -t nat -A PREROUTING -i " + configs['interface'] + " -p TCP -s " + configs['target']['ip'] + " -m multiport --dport " + PORT + ",80 -j DNAT --to " + configs['mitm']['ip']
 	command = "iptables -t nat -A POSTROUTING -p UDP -s " + configs['target']['ip'] + " -j SNAT --to " + configs['mitm']['ip']
+	logging.info( command )
+	os.system ( command )
 
+	command = "iptables -t nat -A POSTROUTING -p TCP -s " + configs['target']['ip'] + " -j SNAT --to " + configs['mitm']['ip']
 	logging.info( command )
 
 	#os.system ( "iptables -t nat -A PREROUTING -d %configs['target']['ip']% -j DNAT --to %configs['mitm']['ip']%" ) # port will be the one specified in the incoming packet

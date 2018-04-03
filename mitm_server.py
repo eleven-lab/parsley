@@ -42,13 +42,13 @@ class clean_sessions_agent ( threading.Thread ):
 
 		while ( True ):
 			delete_list = []
-			logging.debug( "\n\nChecking terminated threads..." )
+			#logging.debug( "\n\nChecking terminated threads..." )
 			self.mutex.acquire()
-			logging.debug ( "Total threads: {}".format(len( self.sessions )) ) 
+			#logging.debug ( "Total threads: {}".format(len( self.sessions )) ) 
 			for x in range(0, len( self.sessions ) ) :
-				logging.debug ( "Checking thread no: {}".format(x) )
+				#logging.debug ( "Checking thread no: {}".format(x) )
 				if ( self.check_session ( self.sessions[ x ] ) ):
-					logging.debug ( "Thread is dead! Cleaning session no. {}".format( x ) )
+					#logging.debug ( "Thread is dead! Cleaning session no. {}".format( x ) )
 					delete_list.append( x )
 					
 			d = 0
@@ -57,7 +57,7 @@ class clean_sessions_agent ( threading.Thread ):
 				d += 1
 			
 			self.mutex.release()
-			logging.debug( "Sleeping..." )
+			#logging.debug( "Sleeping..." )
 			time.sleep( timeout )
 	
 	def check_session( self, session ):
@@ -127,7 +127,7 @@ class mitm_ssl_context():
 		while ( True ):
 			try:
 				#logging.debug("Waiting for client connections..")
-				c, addr = self.m.accept() # server_callback methos
+				c, addr = self.m.accept() # server_callback method
 
 				self.sessions_mutex.acquire()
 				index = self.search_for ( c ) #  search for client session
@@ -156,7 +156,7 @@ class mitm_ssl_context():
 		for i, sess in enumerate(self.sessions):
 			if ( c == sess.client ):
 				return i
-		logging.error("Something is wrong! client socket was not found on sessions list!\n{}".format ( c ) )
+		#logging.error("Something is wrong! client socket was not found on sessions list!\n{}".format ( c ) )
 
 	def handle_client_session ( self, session ):
 		#client = session.client
@@ -190,6 +190,10 @@ class mitm_ssl_context():
 	def server_callback ( self, c,hostname,ctx ):# ctx connessione con mitm e client
 		try:
 			#logging.info("\n{}\nclient wants to connect to {}".format( c, hostname ))
+
+			if ( hostname == None ):
+				logging.info( "It seems client don't support SNI" )
+				return None
 
 			cl = client_session( c, hostname )
 			cl.server = self.connect_to ( hostname )
@@ -243,6 +247,6 @@ class mitm_ssl_context():
 		# Error: [Errno 0] Error --> self._sslobj.do_handshake() --> OSError: [Errno 0] Error
 		# CLIENT CLOSE THE CONNECTION DURING THE HANDSHAKE
 
-		logging.error( "Error: {}".format(e), exc_info=True )
+		#logging.error( "Error: {}".format(e), exc_info=True )
 		return 0
 

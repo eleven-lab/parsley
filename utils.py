@@ -26,26 +26,26 @@ def connect_to_server( s, ip, port ):
 		#logging.debug("Doing TLS handshake...")
 		s = wrap_ssl_socket( s )
 
-	while ( True ):
-		try:
-			# maybe it should connect to IP instead of name host?
-			conn = s.connect( (ip, port) )
-			if ( conn == -1 ):
-				raise Exception
-			else:
-				#logging.debug( "[{}] Connection enstablished!\n{}\n".format(time.asctime( time.localtime(time.time()) ), s ) )
-				return s
+	try:
+		# maybe it should connect to IP instead of name host?
+		conn = s.connect( (ip, port) )
+		if ( conn == -1 ):
+			raise Exception
+		else:
+			#logging.debug( "[{}] Connection enstablished!\n{}\n".format(time.asctime( time.localtime(time.time()) ), s ) )
+			return s
 
-		except Exception as e:
-			logging.error ( "Error {} in connecting to {}:{}!".format(e,ip,port), exc_info=True )
-			
-			# OSError: [Errno 9] Bad file descriptor
-			if ( e.errno == 9 ):
-				continue
-			else:
-				raise
+	except Exception as e:
+		logging.error ( "Error {} in connecting to {}:{}!".format(e,ip,port), exc_info=True )
+		
+		# OSError: [Errno 9] Bad file descriptor
+		if ( e.errno == 9 ):
+			#continue
+			raise
 
-	return
+		#[Errno 104] Connection reset by peer
+		else:
+			raise
 	
 def create_socket():
 	s = None
